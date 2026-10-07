@@ -612,6 +612,26 @@ def _run_naver_category(cfg: JobConfig, log: Log, progress: Progress | None = No
             shutil.rmtree(tmp_root, ignore_errors=True)
 
 
+_GENERIC_OUTPUT_NAMES = {"이미지북", "output", "이미지pdf", ""}
+
+
+def _auto_output(cfg: JobConfig, chapters: list[Chapter]) -> Path:
+    """출력 파일명이 기본값('이미지북' 등)이면 수집한 제목으로 바꾼다(폴더 위치는 그대로).
+    사용자가 저장 위치에서 이름을 직접 정했으면 그대로 둔다. 주소(URL) 수집은 변환 전 제목을 몰라 기본값이 쓰임."""
+    out = cfg.output
+    if not chapters or out.with_suffix("").name.strip().lower() not in {n.lower() for n in _GENERIC_OUTPUT_NAMES}:
+        return out
+    series = vol.series_name(chapters)
+    if len(chapters) == 1:
+        name = _trim_after_episode(chapters[0].title) or series or chapters[0].title
+    elif series:
+        name = f"{series} {vol.episode_label(chapters[0].title)}~{vol.episode_label(chapters[-1].title)}"
+    else:
+        name = f"{chapters[0].title} ~ {chapters[-1].title}"
+    name = _safe_name(name, 70) or "이미지북"
+    return out.with_name(name + out.suffix)
+
+
 def run(cfg: JobConfig, log: Log = _log, progress: Progress | None = None,
         ask_replacements: AskReplacements | None = None) -> Path:
     """수집 → PDF 생성 전체 파이프라인. 결과 PDF(또는 --split이면 폴더) 경로를 돌려준다.
@@ -680,16 +700,17 @@ def run(cfg: JobConfig, log: Log = _log, progress: Progress | None = None,
     log(f"[green]{stop_reason}[/green] — 총 {len(chapters)}화")
     _apply_webtoon_merge(chapters, cfg, log)
 
+    out_path = _auto_output(cfg, chapters)  # 기본 이름('이미지북')이면 수집한 제목으로
     tmp = job_dir / ".tmp"
     if cfg.split:
-        out_dir = cfg.output if cfg.output.suffix.lower() not in (".pdf", ".epub", ".jpg", ".webp") else cfg.output.with_suffix("")
+        out_dir = out_path.with_suffix("") if out_path.suffix.lower() in (".pdf", ".epub", ".jpg", ".webp") else out_path
         out_dir.mkdir(parents=True, exist_ok=True)
         for ch in chapters:
             _write_outputs([ch], cfg, out_dir / f"{ch.index:03d}_{_safe_name(ch.title)}", tmp, log)
         log(f"[bold green]완료:[/bold green] {out_dir} ({len(chapters)}개 회차)")
         result = out_dir
     else:
-        result = _write_outputs(chapters, cfg, cfg.output, tmp, log)
+        result = _write_outputs(chapters, cfg, out_path, tmp, log)
 
     if not cfg.keep_images:
         shutil.rmtree(job_dir, ignore_errors=True)
