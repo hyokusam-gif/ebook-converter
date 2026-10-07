@@ -162,11 +162,40 @@ def _version_suffix() -> str:
         return ""
 
 
+class _Tip:
+    """위젯에 마우스를 올리면 짧은 설명을 작은 말풍선으로 보여준다."""
+    def __init__(self, widget: tk.Widget, text: str) -> None:
+        self.widget, self.text, self.tip = widget, text, None
+        widget.bind("<Enter>", self._show, add="+")
+        widget.bind("<Leave>", self._hide, add="+")
+
+    def _show(self, _e: object = None) -> None:
+        if self.tip or not self.text:
+            return
+        x = self.widget.winfo_rootx() + 16
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
+        self.tip = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        tk.Label(tw, text=self.text, justify="left", bg="#fffbe6", relief="solid", borderwidth=1,
+                 font=("맑은 고딕", 9), padx=6, pady=3, wraplength=380).pack()
+
+    def _hide(self, _e: object = None) -> None:
+        if self.tip:
+            self.tip.destroy()
+            self.tip = None
+
+
+def _tip(widget: tk.Widget, text: str) -> None:
+    _Tip(widget, text)
+
+
 class App(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title(f"웹페이지 이미지 → PDF 변환기{_version_suffix()}")
-        self.minsize(640, 560)
+        self.minsize(720, 600)
+        self.geometry("780x680")
         self.q: queue.Queue = queue.Queue()
         self.worker: threading.Thread | None = None
         self.result: Path | None = None
@@ -176,158 +205,186 @@ class App(tk.Tk):
 
     # ---------- UI ----------
     def _build(self) -> None:
-        pad = {"padx": 8, "pady": 4}
-        frm = ttk.Frame(self, padding=10)
-        frm.pack(fill="both", expand=True)
-        frm.columnconfigure(1, weight=1)
+        pad = {"padx": 6, "pady": 3}
+        self.option_add("*Font", ("맑은 고딕", 10))
+        style = ttk.Style(self)
+        style.configure("Section.TLabelframe.Label", font=("맑은 고딕", 11, "bold"))
+        style.configure("Hint.TLabel", foreground="#888")
+        style.configure("Preset.TButton", padding=(10, 6))
 
-        ttk.Label(frm, text="페이지 주소 또는\n저장한 파일/폴더").grid(row=0, column=0, sticky="w", **pad)
+        root = ttk.Frame(self, padding=10)
+        root.pack(fill="both", expand=True)
+
+        # ── 빠른 설정(프리셋) ──
+        pre = ttk.Frame(root)
+        pre.pack(fill="x", pady=(0, 8))
+        ttk.Label(pre, text="빠른 설정", font=("맑은 고딕", 10, "bold")).pack(side="left", padx=(0, 8))
+        b_wt = ttk.Button(pre, text="웹툰용", style="Preset.TButton", command=self._preset_webtoon)
+        b_wt.pack(side="left")
+        b_mg = ttk.Button(pre, text="일본 만화책용", style="Preset.TButton", command=self._preset_manga)
+        b_mg.pack(side="left", padx=(6, 0))
+        ttk.Label(pre, text="  자주 쓰는 설정을 한 번에 맞춰줍니다", style="Hint.TLabel").pack(side="left")
+        _tip(b_wt, "형식 PDF · 읽는 방향 왼→오 · 이미지 자동 · '웹툰처럼 길게 이어붙이기' 켜기")
+        _tip(b_mg, "형식 EPUB · 읽는 방향 오른→왼 · 파일 묶기 '표지가 바뀔 때마다'")
+
+        # ── ① 변환할 것 넣기 ──
+        sec1 = ttk.LabelFrame(root, text=" ① 변환할 것 넣기 ", style="Section.TLabelframe", padding=8)
+        sec1.pack(fill="x", pady=(0, 6))
+        sec1.columnconfigure(0, weight=1)
         self.url = tk.StringVar()
-        ttk.Entry(frm, textvariable=self.url).grid(row=0, column=1, sticky="ew", **pad)
-        ubtn = ttk.Frame(frm)
-        ubtn.grid(row=0, column=2, **pad)
-        # 윗줄: 크롬 연동(앱 하나로 쓰는 주 흐름) — 모으기 → 분석 → (설정 확인 후) 변환
-        row_a = ttk.Frame(ubtn)
-        row_a.pack(anchor="e")
-        ttk.Button(row_a, text="크롬에서 모으기", command=self._collect_in_chrome).pack(side="left")
-        ttk.Button(row_a, text="권 분석", command=self._analyze_clicked).pack(side="left", padx=(4, 0))
-        ttk.Button(row_a, text="크롬 확장 설치", command=self._install_extension).pack(side="left", padx=(4, 0))
-        # 아랫줄: 직접 불러오기
-        row_b = ttk.Frame(ubtn)
-        row_b.pack(anchor="e", pady=(4, 0))
-        ttk.Button(row_b, text="붙여넣기", command=self._paste).pack(side="left")
-        ttk.Button(row_b, text="최근 저장 파일", command=self._use_latest_saved).pack(side="left", padx=(4, 0))
-        ttk.Button(row_b, text="파일 열기", command=self._browse_html).pack(side="left", padx=(4, 0))
-        ttk.Button(row_b, text="폴더 열기", command=self._browse_folder).pack(side="left", padx=(4, 0))
+        ttk.Entry(sec1, textvariable=self.url).grid(row=0, column=0, sticky="ew", pady=(0, 6))
+        r1 = ttk.Frame(sec1); r1.grid(row=1, column=0, sticky="w")
+        ttk.Button(r1, text="붙여넣기", command=self._paste).pack(side="left")
+        ttk.Button(r1, text="최근 저장 파일", command=self._use_latest_saved).pack(side="left", padx=(4, 0))
+        ttk.Button(r1, text="파일 열기", command=self._browse_html).pack(side="left", padx=(4, 0))
+        ttk.Button(r1, text="폴더 열기", command=self._browse_folder).pack(side="left", padx=(4, 0))
+        r2 = ttk.Frame(sec1); r2.grid(row=2, column=0, sticky="w", pady=(6, 0))
+        ttk.Label(r2, text="크롬 연동:", style="Hint.TLabel").pack(side="left", padx=(0, 4))
+        ttk.Button(r2, text="크롬에서 모으기", command=self._collect_in_chrome).pack(side="left")
+        ttk.Button(r2, text="권 분석", command=self._analyze_clicked).pack(side="left", padx=(4, 0))
+        ttk.Button(r2, text="크롬 확장 설치", command=self._install_extension).pack(side="left", padx=(4, 0))
 
-        ttk.Label(frm, text="저장 위치").grid(row=1, column=0, sticky="w", **pad)
-        self.output = tk.StringVar(value=str(DESKTOP / "이미지북.epub"))
-        ttk.Entry(frm, textvariable=self.output).grid(row=1, column=1, sticky="ew", **pad)
-        ttk.Button(frm, text="찾아보기", command=self._browse_output).grid(row=1, column=2, **pad)
-
-        meta = ttk.Frame(frm)
-        meta.grid(row=2, column=0, columnspan=3, sticky="ew", **pad)
-        meta.columnconfigure(1, weight=1)
-        meta.columnconfigure(3, weight=1)
-        ttk.Label(meta, text="저자").grid(row=0, column=0, sticky="w")
-        self.author = tk.StringVar()
-        ttk.Entry(meta, textvariable=self.author).grid(row=0, column=1, sticky="ew", padx=(6, 16))
-        ttk.Label(meta, text="책 제목 (비우면 자동)").grid(row=0, column=2, sticky="w")
-        self.book_title = tk.StringVar()
-        ttk.Entry(meta, textvariable=self.book_title).grid(row=0, column=3, sticky="ew", padx=(6, 0))
-
-        opts = ttk.Frame(frm)
-        opts.grid(row=3, column=0, columnspan=3, sticky="w", **pad)
-        ttk.Label(opts, text="형식:").pack(side="left")
+        # ── ② 어떻게 만들까 ──
+        sec2 = ttk.LabelFrame(root, text=" ② 어떻게 만들까 ", style="Section.TLabelframe", padding=8)
+        sec2.pack(fill="x", pady=(0, 6))
+        sec2.columnconfigure(1, weight=1)
+        fr = ttk.Frame(sec2); fr.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 2))
+        flbl = ttk.Label(fr, text="형식", width=9); flbl.pack(side="left")
         self.format = tk.StringVar(value="epub")
         for text, val in (("EPUB (아이폰 도서앱)", "epub"), ("PDF", "pdf"), ("둘 다", "both"),
                           ("JPG 이미지", "jpg"), ("WEBP 이미지", "webp")):
-            ttk.Radiobutton(opts, text=text, value=val, variable=self.format,
+            ttk.Radiobutton(fr, text=text, value=val, variable=self.format,
                             command=self._sync_output_ext).pack(side="left", padx=(6, 0))
-        ttk.Label(opts, text="   읽는 방향:").pack(side="left")
+        _tip(flbl, "EPUB=아이폰 '도서' 앱 / PDF=스크롤 보기 좋음(웹툰) / JPG·WEBP=낱장 이미지 폴더")
+        dr = ttk.Frame(sec2); dr.grid(row=1, column=0, columnspan=3, sticky="w", pady=(0, 2))
+        dlbl = ttk.Label(dr, text="읽는 방향", width=9); dlbl.pack(side="left")
         self.direction = tk.StringVar(value="rtl")
         for text, val in (("오른쪽→왼쪽 (일본 만화)", "rtl"), ("왼쪽→오른쪽 (웹툰)", "ltr")):
-            ttk.Radiobutton(opts, text=text, value=val, variable=self.direction).pack(side="left", padx=(6, 0))
-        ttk.Label(opts, text="   이미지 선택:").pack(side="left")
+            ttk.Radiobutton(dr, text=text, value=val, variable=self.direction).pack(side="left", padx=(6, 0))
+        ttk.Label(dr, text="  (EPUB에서만 적용)", style="Hint.TLabel").pack(side="left")
+        _tip(dlbl, "EPUB에서만 적용. 웹툰=왼→오, 일본 만화책=오른→왼. PDF·JPG·WEBP는 영향 없음")
+        mr = ttk.Frame(sec2); mr.grid(row=2, column=0, columnspan=3, sticky="w", pady=(0, 4))
+        mlbl = ttk.Label(mr, text="이미지 선택", width=9); mlbl.pack(side="left")
         self.mode = tk.StringVar(value="auto")
         for text, val in (("자동", "auto"), ("큰 이미지 전부", "all"), ("웹툰 본문만", "webtoon")):
-            ttk.Radiobutton(opts, text=text, value=val, variable=self.mode).pack(side="left", padx=(6, 0))
+            ttk.Radiobutton(mr, text=text, value=val, variable=self.mode).pack(side="left", padx=(6, 0))
+        _tip(mlbl, "자동=알아서(보통 이거). 큰 이미지 전부=본문이 빠질 때. 웹툰 본문만=광고가 섞일 때")
+        ttk.Label(sec2, text="저장 위치").grid(row=3, column=0, sticky="w", pady=(4, 0))
+        self.output = tk.StringVar(value=str(DESKTOP / "이미지북.epub"))
+        ttk.Entry(sec2, textvariable=self.output).grid(row=3, column=1, sticky="ew", padx=(6, 6), pady=(4, 0))
+        ttk.Button(sec2, text="찾아보기", command=self._browse_output).grid(row=3, column=2, sticky="e", pady=(4, 0))
 
-        opts2 = ttk.Frame(frm)
-        opts2.grid(row=4, column=0, columnspan=3, sticky="w", **pad)
-        ttk.Label(opts2, text="'다음' 링크 따라가기 최대").pack(side="left")
+        # ── ③ 여러 편·권 묶기 ──
+        sec3 = ttk.LabelFrame(root, text=" ③ 여러 편·권 묶기 ", style="Section.TLabelframe", padding=8)
+        sec3.pack(fill="x", pady=(0, 6))
+        nr = ttk.Frame(sec3); nr.pack(fill="x", pady=(0, 2))
+        ttk.Label(nr, text="'다음' 링크 따라가기 최대").pack(side="left")
         self.max_chapters = tk.IntVar(value=1)
-        ttk.Spinbox(opts2, from_=1, to=999, width=5, textvariable=self.max_chapters).pack(side="left", padx=(4, 2))
-        ttk.Label(opts2, text="페이지 (1 = 이 페이지만)").pack(side="left", padx=(0, 16))
+        sp = ttk.Spinbox(nr, from_=1, to=999, width=5, textvariable=self.max_chapters)
+        sp.pack(side="left", padx=(4, 2))
+        ttk.Label(nr, text="편 (1 = 이 화만)").pack(side="left", padx=(0, 16))
         self.headed = tk.BooleanVar(value=False)
-        ttk.Checkbutton(opts2, text="브라우저 창 보기", variable=self.headed).pack(side="left", padx=(0, 12))
-        self.split = tk.BooleanVar(value=False)
-        ttk.Checkbutton(opts2, text="페이지별로 나누기", variable=self.split).pack(side="left", padx=(0, 12))
+        hb = ttk.Checkbutton(nr, text="브라우저 창 보기", variable=self.headed); hb.pack(side="left")
+        _tip(sp, "주소로 받을 때 '다음화'를 자동으로 따라가며 최대 N편 연속 수집. 1 = 이 화만")
+        _tip(hb, "주소로 받을 때 크롬 창을 띄움. 보안확인(사람 확인)이 뜨면 그 창에서 직접 통과")
+        wr = ttk.Frame(sec3); wr.pack(fill="x", pady=(0, 2))
         self.webtoon_merge = tk.BooleanVar(value=False)
-        ttk.Checkbutton(opts2, text="웹툰처럼 길게 이어붙이기(끊김↓)", variable=self.webtoon_merge).pack(side="left", padx=(0, 12))
-
-        opts3 = ttk.Frame(frm)
-        opts3.grid(row=5, column=0, columnspan=3, sticky="w", **pad)
-        ttk.Label(opts3, text="파일 여러 개 묶기:").pack(side="left")
+        wb = ttk.Checkbutton(wr, text="웹툰처럼 길게 이어붙이기 (끊김 줄이기)", variable=self.webtoon_merge)
+        wb.pack(side="left")
+        _tip(wb, "웹툰 전용. 작게 잘린 조각을 긴 한 쪽으로 묶어 끊김을 줄임(장면 사이 빈 곳에서 자름)")
+        gr = ttk.Frame(sec3); gr.pack(fill="x", pady=(2, 0))
+        glbl = ttk.Label(gr, text="파일 여러 개 묶기:"); glbl.pack(side="left")
         self.group_mode = tk.StringVar(value="cover")
-        ttk.Radiobutton(opts3, text="표지가 바뀔 때마다 새 권 (권별 자동)", value="cover", variable=self.group_mode).pack(side="left", padx=(6, 0))
-        ttk.Radiobutton(opts3, text="전부 한 권", value="all", variable=self.group_mode).pack(side="left", padx=(8, 0))
-        ttk.Radiobutton(opts3, text="", value="count", variable=self.group_mode).pack(side="left", padx=(8, 0))
+        ttk.Radiobutton(gr, text="표지가 바뀔 때마다 새 권", value="cover", variable=self.group_mode).pack(side="left", padx=(6, 0))
+        ttk.Radiobutton(gr, text="전부 한 권", value="all", variable=self.group_mode).pack(side="left", padx=(6, 0))
+        ttk.Radiobutton(gr, text="", value="count", variable=self.group_mode).pack(side="left", padx=(6, 0))
         self.group = tk.IntVar(value=7)
-        ttk.Spinbox(opts3, from_=1, to=99, width=4, textvariable=self.group).pack(side="left")
-        ttk.Label(opts3, text="개씩 한 권").pack(side="left", padx=(2, 0))
-        ttk.Label(opts3, text="   첫 권 번호").pack(side="left")
+        ttk.Spinbox(gr, from_=1, to=99, width=4, textvariable=self.group).pack(side="left")
+        ttk.Label(gr, text="개씩 한 권").pack(side="left", padx=(2, 0))
+        ttk.Label(gr, text="  첫 권 번호").pack(side="left")
         self.first_volume = tk.IntVar(value=1)
-        ttk.Spinbox(opts3, from_=1, to=999, width=4, textvariable=self.first_volume).pack(side="left", padx=(4, 0))
-        ttk.Label(opts3, text="(표지에 'N권'이 있으면 읽어서 씀)").pack(side="left", padx=(4, 0))
+        ttk.Spinbox(gr, from_=1, to=999, width=4, textvariable=self.first_volume).pack(side="left", padx=(4, 0))
+        _tip(glbl, "여러 편/파일을 권으로 묶기. 표지로 자동 / 전부 한 권 / N개씩(표지 없을 때 '첫 권 번호'부터)")
 
-        opts4 = ttk.Frame(frm)
-        opts4.grid(row=6, column=0, columnspan=3, sticky="w", **pad)
-        ttk.Label(opts4, text="만들 권").pack(side="left")
-        self.vol_from = tk.StringVar(); self.vol_to = tk.StringVar()
-        ttk.Entry(opts4, textvariable=self.vol_from, width=5).pack(side="left", padx=(4, 0))
-        ttk.Label(opts4, text="~").pack(side="left", padx=2)
-        ttk.Entry(opts4, textvariable=self.vol_to, width=5).pack(side="left")
-        ttk.Label(opts4, text="권 (비우면 전부)").pack(side="left", padx=(4, 16))
-        ttk.Label(opts4, text="읽을 화").pack(side="left")
-        self.ep_from = tk.StringVar(); self.ep_to = tk.StringVar()
-        ttk.Entry(opts4, textvariable=self.ep_from, width=5).pack(side="left", padx=(4, 0))
-        ttk.Label(opts4, text="~").pack(side="left", padx=2)
-        ttk.Entry(opts4, textvariable=self.ep_to, width=5).pack(side="left")
-        ttk.Label(opts4, text="화 (비우면 전부. 파일 읽기부터 건너뜀)").pack(side="left", padx=(4, 0))
-
-        # 고급 설정 (접이식)
+        # ── 고급 설정 (접이식) — 평소 안 쓰는 옵션 ──
         self.adv_open = tk.BooleanVar(value=False)
-        ttk.Checkbutton(frm, text="고급 설정", variable=self.adv_open, command=self._toggle_adv,
-                        style="Toolbutton").grid(row=7, column=0, sticky="w", **pad)
-        self.adv = ttk.Frame(frm)
+        ttk.Checkbutton(root, text="고급 설정 (저자·제목 · 권/화 범위 · 세부 옵션)", variable=self.adv_open,
+                        command=self._toggle_adv, style="Toolbutton").pack(anchor="w", pady=(2, 0))
+        self.adv = ttk.Frame(root)
         self.adv.columnconfigure(1, weight=1)
-        ttk.Label(self.adv, text="다음 페이지 selector").grid(row=0, column=0, sticky="w", **pad)
+        am = ttk.Frame(self.adv); am.grid(row=0, column=0, columnspan=3, sticky="ew", **pad)
+        am.columnconfigure(1, weight=1); am.columnconfigure(3, weight=1)
+        ttk.Label(am, text="저자").grid(row=0, column=0, sticky="w")
+        self.author = tk.StringVar()
+        ttk.Entry(am, textvariable=self.author).grid(row=0, column=1, sticky="ew", padx=(6, 16))
+        ttk.Label(am, text="책 제목 (비우면 자동)").grid(row=0, column=2, sticky="w")
+        self.book_title = tk.StringVar()
+        ttk.Entry(am, textvariable=self.book_title).grid(row=0, column=3, sticky="ew", padx=(6, 0))
+        rr = ttk.Frame(self.adv); rr.grid(row=1, column=0, columnspan=3, sticky="w", **pad)
+        ttk.Label(rr, text="만들 권").pack(side="left")
+        self.vol_from = tk.StringVar(); self.vol_to = tk.StringVar()
+        ttk.Entry(rr, textvariable=self.vol_from, width=5).pack(side="left", padx=(4, 0))
+        ttk.Label(rr, text="~").pack(side="left", padx=2)
+        ttk.Entry(rr, textvariable=self.vol_to, width=5).pack(side="left")
+        ttk.Label(rr, text="권 (비우면 전부)").pack(side="left", padx=(4, 16))
+        ttk.Label(rr, text="읽을 화").pack(side="left")
+        self.ep_from = tk.StringVar(); self.ep_to = tk.StringVar()
+        ttk.Entry(rr, textvariable=self.ep_from, width=5).pack(side="left", padx=(4, 0))
+        ttk.Label(rr, text="~").pack(side="left", padx=2)
+        ttk.Entry(rr, textvariable=self.ep_to, width=5).pack(side="left")
+        ttk.Label(rr, text="화 (비우면 전부)").pack(side="left", padx=(4, 0))
+        self.split = tk.BooleanVar(value=False)
+        ttk.Checkbutton(self.adv, text="페이지별로 나누기 (회차마다 파일 따로)",
+                        variable=self.split).grid(row=2, column=0, columnspan=3, sticky="w", **pad)
+        ttk.Label(self.adv, text="다음 페이지 selector").grid(row=3, column=0, sticky="w", **pad)
         self.next_selector = tk.StringVar()
-        ttk.Entry(self.adv, textvariable=self.next_selector).grid(row=0, column=1, columnspan=2, sticky="ew", **pad)
-        ttk.Label(self.adv, text="최소 이미지 폭(px)").grid(row=1, column=0, sticky="w", **pad)
+        ttk.Entry(self.adv, textvariable=self.next_selector).grid(row=3, column=1, columnspan=2, sticky="ew", **pad)
+        ttk.Label(self.adv, text="최소 이미지 폭(px)").grid(row=4, column=0, sticky="w", **pad)
         self.min_width = tk.IntVar(value=300)
-        ttk.Spinbox(self.adv, from_=50, to=3000, increment=50, width=7, textvariable=self.min_width).grid(row=1, column=1, sticky="w", **pad)
-        ttk.Label(self.adv, text="요청 간격(초)").grid(row=2, column=0, sticky="w", **pad)
+        ttk.Spinbox(self.adv, from_=50, to=3000, increment=50, width=7, textvariable=self.min_width).grid(row=4, column=1, sticky="w", **pad)
+        ttk.Label(self.adv, text="요청 간격(초)").grid(row=5, column=0, sticky="w", **pad)
         self.delay = tk.DoubleVar(value=0.3)
-        ttk.Spinbox(self.adv, from_=0, to=10, increment=0.1, width=7, textvariable=self.delay).grid(row=2, column=1, sticky="w", **pad)
-        ttk.Label(self.adv, text="로그인 세션 파일").grid(row=3, column=0, sticky="w", **pad)
+        ttk.Spinbox(self.adv, from_=0, to=10, increment=0.1, width=7, textvariable=self.delay).grid(row=5, column=1, sticky="w", **pad)
+        ttk.Label(self.adv, text="로그인 세션 파일").grid(row=6, column=0, sticky="w", **pad)
         self.cookies = tk.StringVar()
-        ttk.Entry(self.adv, textvariable=self.cookies).grid(row=3, column=1, sticky="ew", **pad)
-        cbtn = ttk.Frame(self.adv)
-        cbtn.grid(row=3, column=2, **pad)
+        ttk.Entry(self.adv, textvariable=self.cookies).grid(row=6, column=1, sticky="ew", **pad)
+        cbtn = ttk.Frame(self.adv); cbtn.grid(row=6, column=2, **pad)
         ttk.Button(cbtn, text="찾기", command=self._browse_cookies).pack(side="left")
         ttk.Button(cbtn, text="로그인해서 만들기", command=self._make_login).pack(side="left", padx=(4, 0))
 
-        self.start_btn = ttk.Button(frm, text="변환 시작", command=self._start)
-        self.start_btn.grid(row=9, column=0, columnspan=3, sticky="ew", padx=8, pady=(10, 4))
+        # ── 변환 시작 · 진행 · 기록 ──
+        self.start_btn = tk.Button(root, text="변환 시작", command=self._start,
+                                   bg="#2e7d32", fg="white", activebackground="#1b5e20", activeforeground="white",
+                                   font=("맑은 고딕", 13, "bold"), relief="flat", padx=10, pady=9, cursor="hand2")
+        self.start_btn.pack(fill="x", pady=(10, 4))
+        self.progress = ttk.Progressbar(root, mode="indeterminate")
+        self.progress.pack(fill="x")
 
-        self.progress = ttk.Progressbar(frm, mode="indeterminate")
-        self.progress.grid(row=10, column=0, columnspan=3, sticky="ew", padx=8)
+        strow = ttk.Frame(root); strow.pack(fill="x", pady=(4, 0))
+        self.log_btn = ttk.Button(strow, text="자세히 보기 ▾", command=self._toggle_log, style="Toolbutton")
+        self.log_btn.pack(side="right")
+        self.status = ttk.Label(strow, text="준비됨 — 빠른 설정을 고르고 [변환 시작]을 누르세요.")
+        self.status.pack(side="left")
 
-        # 진행 내역: 터미널처럼 계속 쌓이고, [내역 지우기]로 비운다
-        self.log = ScrolledText(frm, height=14, state="disabled", wrap="word",
+        # 진행 내역(기록) — 평소엔 접어둠. [자세히 보기]로 펼침.
+        self.log = ScrolledText(root, height=12, state="disabled", wrap="word",
                                 font=("Consolas", 10), bg="#141414", fg="#e6e6e6", insertbackground="#e6e6e6")
-        self.log.grid(row=11, column=0, columnspan=3, sticky="nsew", padx=8, pady=6)
         self.log.tag_config("warn", foreground="#ffd166")
         self.log.tag_config("error", foreground="#ff6b6b")
         self.log.tag_config("ok", foreground="#8ce99a")
         self.log.tag_config("sep", foreground="#7aa2f7")
-        frm.rowconfigure(11, weight=1)
         self.issues: list[str] = []
+        self._log_shown = False
 
-        bottom = ttk.Frame(frm)
-        bottom.grid(row=12, column=0, columnspan=3, sticky="ew", padx=8)
-        self.status = ttk.Label(
-            bottom, text="[크롬에서 모으기]로 모아 [권 분석] 후 설정을 확인하고 [변환 시작], 또는 저장한 파일/폴더를 바로 불러오세요.")
-        self.status.pack(side="left")
-        self.open_dir_btn = ttk.Button(bottom, text="폴더 열기", state="disabled", command=self._open_dir)
+        self._bottom = ttk.Frame(root)
+        self._bottom.pack(fill="x", pady=(6, 0))
+        ttk.Button(self._bottom, text="❓ 도움말", command=self._show_help).pack(side="left")
+        self.open_dir_btn = ttk.Button(self._bottom, text="폴더 열기", state="disabled", command=self._open_dir)
         self.open_dir_btn.pack(side="right")
-        self.open_btn = ttk.Button(bottom, text="결과 열기", state="disabled", command=self._open_result)
+        self.open_btn = ttk.Button(self._bottom, text="결과 열기", state="disabled", command=self._open_result)
         self.open_btn.pack(side="right", padx=(0, 6))
-        ttk.Button(bottom, text="내역 지우기", command=self._clear_log).pack(side="right", padx=(0, 12))
-        ttk.Button(bottom, text="업데이트 확인", command=self._check_update_now).pack(side="right", padx=(0, 12))
-        ttk.Button(bottom, text="❓ 도움말", command=self._show_help).pack(side="left", padx=(12, 0))
+        ttk.Button(self._bottom, text="내역 지우기", command=self._clear_log).pack(side="right", padx=(0, 12))
+        ttk.Button(self._bottom, text="업데이트 확인", command=self._check_update_now).pack(side="right", padx=(0, 12))
 
     @staticmethod
     def _range(v_from: tk.StringVar, v_to: tk.StringVar) -> tuple[int, int] | None:
@@ -351,9 +408,43 @@ class App(tk.Tk):
 
     def _toggle_adv(self) -> None:
         if self.adv_open.get():
-            self.adv.grid(row=8, column=0, columnspan=3, sticky="ew")
+            self.adv.pack(fill="x", padx=2, pady=(0, 4), before=self.start_btn)
         else:
-            self.adv.grid_forget()
+            self.adv.pack_forget()
+
+    def _show_log(self) -> None:
+        if not getattr(self, "_log_shown", False):
+            self.log.pack(fill="both", expand=True, pady=(4, 0), before=self._bottom)
+            self.log_btn.config(text="접기 ▴")
+            self._log_shown = True
+
+    def _toggle_log(self) -> None:
+        if getattr(self, "_log_shown", False):
+            self.log.pack_forget()
+            self.log_btn.config(text="자세히 보기 ▾")
+            self._log_shown = False
+        else:
+            self._show_log()
+
+    def _preset_webtoon(self) -> None:
+        """웹툰용 추천 설정을 한 번에."""
+        self.format.set("pdf")
+        self.direction.set("ltr")
+        self.mode.set("auto")
+        self.webtoon_merge.set(True)
+        self.split.set(False)
+        self._sync_output_ext()
+        self.status.config(text="웹툰용 설정 적용: PDF · 왼→오 · 이미지 자동 · '길게 이어붙이기' 켬")
+
+    def _preset_manga(self) -> None:
+        """일본 만화책용 추천 설정을 한 번에."""
+        self.format.set("epub")
+        self.direction.set("rtl")
+        self.mode.set("auto")
+        self.webtoon_merge.set(False)
+        self.group_mode.set("cover")
+        self._sync_output_ext()
+        self.status.config(text="일본 만화책용 설정 적용: EPUB · 오른→왼 · 표지가 바뀔 때마다 새 권")
 
     # ---------- 동작 ----------
     def _paste(self) -> None:
@@ -1080,6 +1171,7 @@ class App(tk.Tk):
         self.start_btn.config(state="normal")
         self.status.config(text="실패")
         self._append_log(f"오류: {msg}")
+        self._show_log()  # 오류 내용을 바로 볼 수 있게 기록창 펼침
         messagebox.showerror("실패", msg)
 
     def _challenge(self, msg: str) -> None:
