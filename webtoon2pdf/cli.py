@@ -39,7 +39,8 @@ def _log(msg: str) -> None:
 
 
 def _safe_name(s: str, limit: int = 60) -> str:
-    s = re.sub(r"[\\/:*?\"<>|\r\n\t]+", " ", s).strip()
+    s = s.replace(":", "：")  # 콜론은 전각(：)으로 보존 — 파일명에 ':'는 못 쓰지만 '：'는 됨
+    s = re.sub(r"[\\/*?\"<>|\r\n\t]+", " ", s).strip()
     s = re.sub(r"\s+", " ", s)
     return s[:limit] or "untitled"
 
