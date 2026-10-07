@@ -3,6 +3,7 @@
 숨은 점검 모드: `전자책변환기.exe --selftest <입력> <출력.epub>` 로 실행하면 창 없이 변환만 하고
 결과를 stdout에 찍는다. 빌드된 exe가 제대로 도는지 확인하는 용도.
 """
+import os
 import sys
 
 
@@ -91,5 +92,25 @@ def main() -> None:
     gui_main()
 
 
+def _log_crash(e: BaseException) -> None:
+    """창 모드(frozen) exe는 오류가 화면에 안 보이므로, 예외를 파일로 남긴다."""
+    import traceback
+    from datetime import datetime
+    from pathlib import Path
+    base = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+    text = f"{datetime.now():%Y-%m-%d %H:%M:%S}\n" + "".join(traceback.format_exception(type(e), e, e.__traceback__))
+    for p in (base / "_오류기록.txt", Path(os.environ.get("TEMP", ".")) / "전자책변환기_오류기록.txt"):
+        try:
+            p.write_text(text, encoding="utf-8")
+        except OSError:
+            pass
+
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except BaseException as e:  # noqa: BLE001
+        _log_crash(e)
+        raise
