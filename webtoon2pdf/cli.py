@@ -110,6 +110,18 @@ def _trim_after_episode(title: str) -> str:
     return m.group(1).strip() if m else title
 
 
+def _nice_title(raw: str) -> str:
+    """웹툰 페이지의 지저분한 탭 제목에서 '작품명 N화'만 깔끔히 뽑는다.
+    예) '제목 : 라그나로크 0001 - 제목 ： 라그나로크 1화 - 뉴토끼 미리보기' → '제목 : 라그나로크 1화'.
+    뉴토끼·마나토끼류의 'NNNN - 작품명 N화 - 사이트' 패턴일 때만 정리하고, 그 외 제목은 원본 그대로 둔다
+    (일반 꼬리표는 뒤에서 strip_common_suffix가 처리)."""
+    if not raw:
+        return ""
+    s = raw.replace("：", ":").strip()
+    m = re.search(r"\d{3,4}\s*-\s*(.+?\d{1,4}\s*화)(?=\s*-\s|\s*$)", s)  # NNNN - <작품명 N화> - 사이트
+    return m.group(1).strip() if m else raw
+
+
 def _natural_key(p: Path) -> list:
     """이름의 숫자 순 정렬 키. 배치 접두와 저장 시각은 무시해서 연속 저장 파일과 낱개 저장 파일이
     섞여 있어도 회차 번호 순('나루토 1화' < '나루토 12화')이 되게 한다. 제목이 같으면 배치·번호 순."""
@@ -207,7 +219,7 @@ def _grab_chapter(page, cfg: JobConfig, index: int, url: str, out_dir: Path, log
     _pass_challenge(page, cfg, url, log)
     br.scroll_to_bottom(page, step_wait=cfg.scroll_wait)
     br.wait_images(page)
-    title = _safe_name(page.title() or f"{index}화")
+    title = _safe_name(_nice_title(page.title()) or f"{index}화")
 
     items = extract_images(page, min_width=cfg.min_width, mode=cfg.mode)
     if not items:
