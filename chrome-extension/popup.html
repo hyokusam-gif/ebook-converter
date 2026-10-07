@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  body { width: 270px; margin: 0; padding: 12px; font: 13px/1.5 "Malgun Gothic", "Segoe UI", sans-serif; color: #222; background: #fff; }
+  h1 { font-size: 13px; margin: 0 0 10px; color: #555; font-weight: 600; }
+  button { width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; font: inherit; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .primary { background: #2e7d32; color: #fff; }
+  .batch { background: #1565c0; color: #fff; }
+  .stop { background: #c62828; color: #fff; }
+  .row { display: flex; align-items: center; gap: 6px; margin: 12px 0 6px; }
+  .row input { width: 52px; padding: 5px 6px; border: 1px solid #bbb; border-radius: 4px; font: inherit; text-align: center; }
+  #status { margin-top: 10px; padding: 8px; border-radius: 6px; background: #f3f3f3; white-space: pre-wrap; word-break: break-all; min-height: 1.5em; }
+  #status.err { background: #fdecea; color: #a12622; }
+  #status.run { background: #e3f0fb; color: #0d47a1; }
+  .hint { margin-top: 8px; font-size: 11px; color: #777; }
+  .current { margin: 0 0 8px; padding: 6px 8px; background: #f3f3f3; border-radius: 6px; font-size: 12px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub { margin: -2px 0 8px; font-size: 11px; color: #777; }
+</style>
+</head>
+<body>
+  <h1>webtoon2pdf 페이지 저장</h1>
+  <div id="current" class="current">현재 페이지 확인 중…</div>
+  <button id="saveOne" class="primary">이 페이지만 저장</button>
+
+  <div class="row">
+    <span>이 페이지부터</span>
+    <input id="max" type="number" min="1" max="999" value="20">
+    <span>화 저장</span>
+  </div>
+  <div class="sub" id="rangeHint">현재 페이지를 1화째로 세고, "다음화"를 따라가며 20화까지 저장합니다.</div>
+  <button id="start" class="batch">연속 저장 시작</button>
+  <button id="stop" class="stop" hidden>중지</button>
+
+  <div id="status">대기 중</div>
+  <div class="hint">Ctrl+Shift+S로 이 창을 열고, 화수 입력 후 Enter로 바로 시작할 수 있습니다.<br>저장 위치: 다운로드\webtoon2pdf\ · 변환기에서 [최근 저장 파일]을 누르면 방금 저장한 파일(연속 저장이면 전부)이 들어옵니다.</div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "webtoon2pdf 페이지 저장",
+  "version": "1.1.0",
+  "description": "현재 페이지를 .mhtml로 다운로드/webtoon2pdf 폴더에 저장합니다. 다음화를 따라가며 여러 화를 연속 저장할 수 있고, Ctrl+S를 막는 사이트에서도 동작합니다.",
+  "permissions": ["pageCapture", "downloads", "activeTab", "scripting", "storage", "alarms"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_title": "webtoon2pdf 페이지 저장",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" }
+  },
+  "icons": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Ctrl+Shift+S" },
+      "description": "저장 창 열기 (화수 입력 → Enter로 연속 저장 시작)"
+    },
+    "save-page": {
+      "suggested_key": { "default": "Alt+Shift+S" },
+      "description": "현재 페이지를 .mhtml로 저장"
+    },
+    "batch-toggle": {
+      "description": "연속 저장 시작/중지 (다음화를 따라가며 저장)"
+    }
+  }
+}

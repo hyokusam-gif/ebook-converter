@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>Ctrl+S 막는 페이지</title>
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  .viewer { width: 800px; margin: 0 auto; }
+  .viewer img { display: block; width: 800px; min-height: 600px; }
+  #msg { position: fixed; top: 8px; left: 8px; background: #fee; padding: 6px 10px; }
+</style>
+</head>
+<body>
+<div id="msg">이 페이지는 Ctrl+S / 우클릭을 막습니다. 확장 단축키(Alt+Shift+S)로 저장하세요.</div>
+<div class="viewer">
+  <img data-src="img/body_01.jpg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+  <img data-src="img/body_02.jpg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+  <img data-src="img/body_03.jpg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+</div>
+<script>
+  // 실제 사이트가 저장을 막는 방식과 동일: 브라우저 단축키/컨텍스트 메뉴 차단
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && ['s', 'S', 'p', 'P', 'u', 'U'].includes(e.key)) {
+      e.preventDefault(); e.stopPropagation();
+      document.getElementById('msg').textContent = 'Ctrl+S 차단됨 (' + new Date().toLocaleTimeString() + ')';
+    }
+  }, true);
+  document.addEventListener('contextmenu', (e) => e.preventDefault(), true);
+  // 지연 로딩
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) { e.target.src = e.target.dataset.src; io.unobserve(e.target); }
+    }
+  });
+  document.querySelectorAll('img[data-src]').forEach(i => io.observe(i));
+</script>
+</body>
+</html>

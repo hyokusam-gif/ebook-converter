@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>늦게 넣는 지연 로딩 뷰어</title>
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  .viewer { width: 800px; margin: 0 auto; }
+  .slot { width: 800px; aspect-ratio: 2 / 3; background: #eee; }
+  .slot img { display: block; width: 800px; }
+  .banner { display: block; width: 728px; height: 90px; margin: 20px auto; }
+</style>
+</head>
+<body>
+<img class="banner" src="ads/banner.jpg" alt="ad">
+<div class="viewer" id="viewer"></div>
+<script>
+  // 실제 사이트(뉴토끼 등)처럼: 페이지가 뜨고 3초 뒤에야 스크립트가 loading="lazy" 이미지를 넣는다.
+  setTimeout(() => {
+    const v = document.getElementById('viewer');
+    for (let i = 1; i <= 5; i++) {
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.src = 'img/body_0' + i + '.jpg';
+      slot.appendChild(img);
+      v.appendChild(slot);
+    }
+  }, 3000);
+</script>
+</body>
+</html>

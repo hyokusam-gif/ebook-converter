@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>버튼 이동 테스트</title>
+<style>.viewer img { display: block; width: 800px; }</style>
+</head>
+<body>
+<div class="viewer"><img src="img/body_01.jpg"><img src="img/body_02.jpg"><img src="img/body_03.jpg"></div>
+<div class="pager"><button class="button">이전</button> <button class="button">다음</button></div>
+<div class="nav"><button class="link_prev" disabled>이전화</button> <button class="link_next">다음화</button></div>
+<script>
+  // 댓글 페이저의 "다음"은 URL을 바꾸지 않는다. "다음화"만 JS로 이동한다.
+  document.querySelector('.link_next').addEventListener('click', () => { location.href = 'ep2.html'; });
+</script>
+</body>
+</html>

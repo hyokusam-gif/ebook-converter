@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>Just a moment...</title></head>
+<body>
+<h1>example.test</h1>
+<p>보안 확인 수행 중</p>
+<p>이 웹 사이트는 보안 서비스를 사용하여 악의적인 봇으로부터 보호합니다. 이 페이지는 웹 사이트에서 사용자가 봇이 아님을 확인하는 동안에만 표시됩니다.</p>
+<script>
+  // 테스트용: ?go=1 로 열면 사용자가 확인을 통과한 상황을 2초 뒤 이동으로 흉내낸다.
+  if (location.search.includes('go=1')) setTimeout(() => { location.href = 'ep2.html'; }, 2000);
+</script>
+</body>
+</html>

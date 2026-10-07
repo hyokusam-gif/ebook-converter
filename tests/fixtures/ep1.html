@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>테스트웹툰 1화</title>
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  header { position: sticky; top: 0; background: #fff; padding: 8px; }
+  .viewer { width: 800px; margin: 0 auto; }
+  .viewer img { display: block; width: 800px; min-height: 600px; }
+  .banner { display: block; width: 728px; height: 90px; margin: 20px auto; }
+  .recommend img { width: 200px; height: 280px; display: inline-block; }
+  .spacer { height: 1200px; }
+</style>
+</head>
+<body>
+<header><img src="img/logo.png" alt="logo" width="120" height="40"><a href="prev.html">이전화</a></header>
+<div class="viewer">
+  <img data-src="img/body_01.jpg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+  <img data-src="img/body_02.jpg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+  <img data-src="img/body_03.jpg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+  <img data-src="img/body_04.jpg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+  <img data-src="img/body_05.jpg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+</div>
+<img class="banner" src="ads/banner.jpg" alt="ad">
+<div class="recommend">
+  <img src="img/thumb_a.jpg"><img src="img/thumb_b.jpg"><img src="img/thumb_c.jpg">
+</div>
+<div class="spacer"></div>
+<nav><a href="prev.html">이전화</a> | <a href="list.html">목록</a> | <a href="ep2.html">다음화</a></nav>
+<script>
+  // IntersectionObserver 기반 지연 로딩
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) { e.target.src = e.target.dataset.src; io.unobserve(e.target); }
+    }
+  }, { rootMargin: '0px' });
+  document.querySelectorAll('img[data-src]').forEach(i => io.observe(i));
+</script>
+</body>
+</html>

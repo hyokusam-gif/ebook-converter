@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>캔버스 뷰어 테스트</title>
+<style>canvas { display: block; max-width: 100%; } .ad { display: block; width: 720px; height: 90px; }
+  #bar { position: fixed; bottom: 0; left: 0; right: 0; height: 80px; background: #ff0; }</style>
+</head>
+<body>
+<div id="bar">이전화 | 다음화 (화면 고정 막대 — 캡처에 겹치면 안 됨)</div>
+<img class="ad" src="ads/banner.jpg" alt="ad">
+<div id="scroll-list">
+  <canvas width="720" height="500"></canvas>
+  <canvas width="720" height="700"></canvas>
+  <canvas width="720" height="400"></canvas>
+</div>
+<script>
+  // 이미지 대신 캔버스에 직접 그리는 뷰어 흉내: 스크롤 시점에 그려진다
+  const colors = ['#d33', '#3a3', '#36c'];
+  document.querySelectorAll('canvas').forEach((c, i) => {
+    setTimeout(() => {
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.fillStyle = colors[i]; ctx.fillRect(40, 40, c.width - 80, c.height - 80);
+      ctx.fillStyle = '#000'; ctx.font = '48px sans-serif'; ctx.fillText('page ' + (i + 1), 60, 120);
+    }, 300 * (i + 1));
+  });
+</script>
+</body>
+</html>

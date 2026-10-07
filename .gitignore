@@ -1,0 +1,13 @@
+.venv/
+work/
+*.pdf
+storage_state.json
+__pycache__/
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+*.selftest.txt
+*.epub
+webtoon2pdf.bak/
+*.zip
