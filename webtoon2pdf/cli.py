@@ -24,7 +24,7 @@ from .navigator import find_next_url
 from .epub_builder import build_epub
 from .pdf_builder import build_pdf
 from .image_builder import build_images
-from .stitch import stitch_canvas_strips
+from .stitch import stitch_canvas_strips, merge_slices_to_pages
 from . import volumes as vol
 from . import naver
 
@@ -319,6 +319,14 @@ def parse_range(s: str) -> tuple[int, int]:
     return lo, hi
 
 
+def _apply_webtoon_merge(chapters: list[Chapter], cfg: JobConfig, log: Log) -> None:
+    """웹툰: 각 회차의 작게 잘린 조각들을 '긴 한 쪽'으로 이어 붙여 끊김을 줄인다(cfg.webtoon_merge일 때)."""
+    if not cfg.webtoon_merge:
+        return
+    for ch in chapters:
+        merge_slices_to_pages(ch, cfg.webtoon_page_px, log)
+
+
 def _make_groups(chapters: list[Chapter], cfg: JobConfig, log: Log) -> tuple[list[list[Chapter]], list[str]] | None:
     """여러 회차를 권으로 나눈다. (묶음들, 이름들) 또는 나누지 않으면 None.
     cfg.volume_range가 있으면 그 범위의 권만 남긴다."""
@@ -462,6 +470,7 @@ def _run_local(cfg: JobConfig, inputs: list[tuple[str, str]], log: Log, progress
                     c.index = i
             if not chapters:
                 raise RuntimeError("남은 회차가 없습니다. 저장이 덜 된 파일뿐입니다.")
+        _apply_webtoon_merge(chapters, cfg, log)
         made = _make_groups(chapters, cfg, log)
         if made is not None:
             groups, names = made
@@ -669,6 +678,7 @@ def run(cfg: JobConfig, log: Log = _log, progress: Progress | None = None,
     if not chapters:
         raise RuntimeError("수집한 회차가 없습니다.")
     log(f"[green]{stop_reason}[/green] — 총 {len(chapters)}화")
+    _apply_webtoon_merge(chapters, cfg, log)
 
     tmp = job_dir / ".tmp"
     if cfg.split:
@@ -710,6 +720,8 @@ def grab(
     cookies: Optional[Path] = typer.Option(None, "--cookies", help="login 명령으로 저장한 상태 파일"),
     next_selector: Optional[str] = typer.Option(None, "--next-selector", help="다음 화 링크 CSS selector"),
     split: bool = typer.Option(False, "--split", help="회차별로 PDF를 따로 저장"),
+    webtoon_merge: bool = typer.Option(False, "--webtoon-merge", help="웹툰: 작게 잘린 조각을 긴 한 쪽으로 이어 붙여 끊김 줄임"),
+    webtoon_page_px: int = typer.Option(0, "--webtoon-page-px", help="웹툰 이어붙이기 한 쪽 최대 높이(px). 0=자동(최대)"),
     keep_images: bool = typer.Option(False, "--keep-images", help="원본 이미지를 삭제하지 않음"),
     fit_width: bool = typer.Option(False, "--fit-width", help="가장 흔한 폭에 맞춰 리사이즈"),
     work_dir: Path = typer.Option(Path("work"), "--work-dir", help="중간 파일 폴더"),
@@ -720,6 +732,7 @@ def grab(
     cfg = JobConfig(
         start_url=url, output=output, max_chapters=max_chapters, min_width=min_width, mode=mode, delay=delay,
         headed=headed, cookies=cookies, next_selector=next_selector, split=split,
+        webtoon_merge=webtoon_merge, webtoon_page_px=webtoon_page_px,
         keep_images=keep_images, fit_width=fit_width, work_dir=work_dir, scroll_wait=scroll_wait,
         timeout_ms=timeout * 1000, format=fmt.lower(), title=title, author=author, group=group,
         group_by_cover=group_by_cover, rtl=rtl, first_volume=first_volume,

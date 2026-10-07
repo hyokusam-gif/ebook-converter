@@ -243,6 +243,8 @@ class App(tk.Tk):
         ttk.Checkbutton(opts2, text="브라우저 창 보기", variable=self.headed).pack(side="left", padx=(0, 12))
         self.split = tk.BooleanVar(value=False)
         ttk.Checkbutton(opts2, text="페이지별로 나누기", variable=self.split).pack(side="left", padx=(0, 12))
+        self.webtoon_merge = tk.BooleanVar(value=False)
+        ttk.Checkbutton(opts2, text="웹툰처럼 길게 이어붙이기(끊김↓)", variable=self.webtoon_merge).pack(side="left", padx=(0, 12))
 
         opts3 = ttk.Frame(frm)
         opts3.grid(row=5, column=0, columnspan=3, sticky="w", **pad)
@@ -710,6 +712,7 @@ class App(tk.Tk):
                 min_width=int(self.min_width.get()), mode=self.mode.get(), delay=float(self.delay.get()),
                 headed=self.headed.get(), cookies=Path(cookies) if cookies else None,
                 next_selector=self.next_selector.get().strip() or None, split=self.split.get(),
+                webtoon_merge=self.webtoon_merge.get(),
                 work_dir=APP_DIR / "work", format=self.format.get(),
                 group=int(self.group.get()) if self.group_mode.get() == "count" else 0,
                 group_by_cover=self.group_mode.get() == "cover",

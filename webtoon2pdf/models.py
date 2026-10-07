@@ -66,6 +66,8 @@ class JobConfig:
     cookies: Path | None = None
     next_selector: str | None = None
     split: bool = False
+    webtoon_merge: bool = False   # 웹툰: 작게 잘린 조각들을 '긴 한 쪽'으로 이어 붙여 끊김 줄임
+    webtoon_page_px: int = 0      # 그때 한 쪽 최대 높이(px). 0=자동(최대)
     keep_images: bool = False
     title: str | None = None
     fit_width: bool = False
