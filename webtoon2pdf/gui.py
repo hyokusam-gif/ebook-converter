@@ -292,6 +292,11 @@ class App(tk.Tk):
         wb = ttk.Checkbutton(wr, text="웹툰처럼 길게 이어붙이기 (끊김 줄이기)", variable=self.webtoon_merge)
         wb.pack(side="left")
         _tip(wb, "웹툰 전용. 작게 잘린 조각을 긴 한 쪽으로 묶어 끊김을 줄임(장면 사이 빈 곳에서 자름)")
+        self.split = tk.BooleanVar(value=False)
+        sb = ttk.Checkbutton(wr, text="회차(화)마다 파일 따로", variable=self.split)
+        sb.pack(side="left", padx=(16, 0))
+        _tip(sb, "여러 편을 받을 때 1화, 2화 … 처럼 화마다 파일을 따로 저장(제목은 '작품명 N화'). "
+                 "끄면 한 파일에 전부 합쳐짐")
         gr = ttk.Frame(sec3); gr.pack(fill="x", pady=(2, 0))
         glbl = ttk.Label(gr, text="파일 여러 개 묶기:"); glbl.pack(side="left")
         self.group_mode = tk.StringVar(value="cover")
@@ -333,9 +338,6 @@ class App(tk.Tk):
         ttk.Label(rr, text="~").pack(side="left", padx=2)
         ttk.Entry(rr, textvariable=self.ep_to, width=5).pack(side="left")
         ttk.Label(rr, text="화 (비우면 전부)").pack(side="left", padx=(4, 0))
-        self.split = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.adv, text="페이지별로 나누기 (회차마다 파일 따로)",
-                        variable=self.split).grid(row=2, column=0, columnspan=3, sticky="w", **pad)
         ttk.Label(self.adv, text="다음 페이지 selector").grid(row=3, column=0, sticky="w", **pad)
         self.next_selector = tk.StringVar()
         ttk.Entry(self.adv, textvariable=self.next_selector).grid(row=3, column=1, columnspan=2, sticky="ew", **pad)
@@ -432,9 +434,9 @@ class App(tk.Tk):
         self.direction.set("ltr")
         self.mode.set("auto")
         self.webtoon_merge.set(True)
-        self.split.set(False)
+        self.split.set(True)  # 웹툰은 화마다 따로 저장(1화, 2화 …)
         self._sync_output_ext()
-        self.status.config(text="웹툰용 설정 적용: PDF · 왼→오 · 이미지 자동 · '길게 이어붙이기' 켬")
+        self.status.config(text="웹툰용 설정 적용: PDF · 왼→오 · 자동 · 길게 이어붙이기 · 화마다 따로 저장")
 
     def _preset_manga(self) -> None:
         """일본 만화책용 추천 설정을 한 번에."""
@@ -442,6 +444,7 @@ class App(tk.Tk):
         self.direction.set("rtl")
         self.mode.set("auto")
         self.webtoon_merge.set(False)
+        self.split.set(False)  # 만화는 권으로 묶으므로 화별 분리는 끔
         self.group_mode.set("cover")
         self._sync_output_ext()
         self.status.config(text="일본 만화책용 설정 적용: EPUB · 오른→왼 · 표지가 바뀔 때마다 새 권")
@@ -617,13 +620,17 @@ class App(tk.Tk):
         "  • 자르는 곳은 장면 사이 빈 구간(여백)이라 그림을 가로지르지 않음.\n"
         "  • 웹툰일 때만 켜기. 일반 만화(쪽 단위)엔 끄기.\n\n"
 
+        "■ 회차(화)마다 파일 따로  (웹툰 여러 편)\n"
+        "  • 1화, 2화 … 처럼 화마다 파일을 따로 저장(제목 '작품명 N화').\n"
+        "  • 끄면 여러 편이 한 파일에 전부 합쳐짐('작품명 1화~5화').\n"
+        "  • [웹툰용] 빠른 설정을 누르면 자동으로 켜집니다.\n\n"
+
         "■ 파일 여러 개 묶기  (저장한 파일·여러 편을 권으로)\n"
         "  • 표지가 바뀔 때마다 새 권 : 표지로 자동 구분(표지에 'N권'이 있으면 읽어서 씀).\n"
         "  • 전부 한 권 : 다 합쳐 한 권.\n"
         "  • N개씩 한 권 + 첫 권 번호 : 표지가 없을 때 N편씩 묶고, 번호는 '첫 권 번호'부터.\n\n"
 
         "■ 그 밖에\n"
-        "  • 페이지별로 나누기 : 회차마다 파일을 따로 저장.\n"
         "  • 브라우저 창 보기 : 주소로 받을 때 크롬 창을 띄움. 보안확인(사람 확인)이\n"
         "       뜨면 그 창에서 직접 통과. (주소로 받을 땐 켜두는 게 안전)\n\n"
 

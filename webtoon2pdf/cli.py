@@ -715,12 +715,15 @@ def run(cfg: JobConfig, log: Log = _log, progress: Progress | None = None,
 
     out_path = _auto_output(cfg, chapters)  # 기본 이름('이미지북')이면 수집한 제목으로
     tmp = job_dir / ".tmp"
-    if cfg.split:
+    if cfg.split:  # 회차(화)마다 파일 따로 — 웹툰을 화별로 구분해 저장
         out_dir = out_path.with_suffix("") if out_path.suffix.lower() in (".pdf", ".epub", ".jpg", ".webp") else out_path
         out_dir.mkdir(parents=True, exist_ok=True)
         for ch in chapters:
-            _write_outputs([ch], cfg, out_dir / f"{ch.index:03d}_{_safe_name(ch.title)}", tmp, log)
-        log(f"[bold green]완료:[/bold green] {out_dir} ({len(chapters)}개 회차)")
+            name = _safe_name(ch.title)
+            if not re.search(r"\d", name):  # 회차 번호가 없으면 순번을 붙여 구분
+                name = f"{ch.index:03d} {name}"
+            _write_outputs([ch], cfg, out_dir / name, tmp, log)
+        log(f"[bold green]완료:[/bold green] {out_dir} ({len(chapters)}개 회차를 화별로 따로 저장)")
         result = out_dir
     else:
         result = _write_outputs(chapters, cfg, out_path, tmp, log)
