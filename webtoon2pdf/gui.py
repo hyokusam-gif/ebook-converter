@@ -434,9 +434,10 @@ class App(tk.Tk):
         self.direction.set("ltr")
         self.mode.set("auto")
         self.webtoon_merge.set(True)
-        self.split.set(True)  # 웹툰은 화마다 따로 저장(1화, 2화 …)
+        self.split.set(True)   # 웹툰은 화마다 따로 저장(1화, 2화 …)
+        self.headed.set(True)  # 웹툰 사이트(뉴토끼 등)는 봇 차단이 많아 '브라우저 창 보기'가 필요
         self._sync_output_ext()
-        self.status.config(text="웹툰용 설정 적용: PDF · 왼→오 · 자동 · 길게 이어붙이기 · 화마다 따로 저장")
+        self.status.config(text="웹툰용 설정 적용: PDF · 왼→오 · 자동 · 길게 이어붙이기 · 화마다 따로 · 브라우저 창 보기 켬")
 
     def _preset_manga(self) -> None:
         """일본 만화책용 추천 설정을 한 번에."""
